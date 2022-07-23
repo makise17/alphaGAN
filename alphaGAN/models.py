@@ -117,7 +117,7 @@ class AlphaGAN(object):
         """
         z_rand = Variable(torch.randn(n, self.code_size), volatile=True)
         if self.gpu:
-            z_rand = z_rand.cuda(async=True)
+            z_rand = z_rand.cuda(non_blocking =True)
         return self.generator(z_rand)
 
     def train(self, train_loader, test_loader,
@@ -152,7 +152,8 @@ class AlphaGAN(object):
             os.makedirs(os.path.join(output_path, 'logs/'))
 
         # TODO: update BCELoss() to nn.BCEWithLogitsLoss() for PyTorch v0.2+
-        criterion_bce = nn.BCELoss()
+        criterion_bce = nn.BCEWithLogitsLoss()
+        #criterion_bce = nn.BCELoss()
         criterion_l1 = nn.L1Loss()
 
         optimizer_enc = optim.Adam(
@@ -180,7 +181,7 @@ class AlphaGAN(object):
                 n_batch = len(x)
                 x = Variable(x, requires_grad=False)
                 if self.gpu:
-                    x = x.cuda(async=True)
+                    x = x.cuda(non_blocking=True)
 
                 # Generate codes, reconstructions, and random codes
                 z_hat = self.encoder(x)
@@ -188,53 +189,59 @@ class AlphaGAN(object):
                 z_rand = Variable(torch.randn(z_hat.size()),
                                   requires_grad=False)
                 if self.gpu:
-                    z_rand = z_rand.cuda(async=True)
+                    z_rand = z_rand.cuda(non_blocking=True)
                 x_rand = self.generator(z_rand)
 
                 # Pre-load one and zero variables for efficient reuse
-                one = Variable(torch.ones(n_batch))
-                zero = Variable(torch.zeros(n_batch))
+                one = Variable(torch.ones(n_batch,1))
+                zero = Variable(torch.zeros(n_batch,1))
                 if self.gpu:
-                    one = one.cuda(async=True)
-                    zero = zero.cuda(async=True)
+                    one = one.cuda(non_blocking=True)
+                    zero = zero.cuda(non_blocking=True)
 
                 # 1: Update encoder and decoder (generator) parameters
                 optimizer_enc.zero_grad()
                 optimizer_gen.zero_grad()
                 l1_loss = self.lambda_ * criterion_l1(x_hat, x)
                 c_loss = criterion_bce(
-                    F.sigmoid(self.codeDiscriminator(z_hat)), one)
+                    self.codeDiscriminator(z_hat), one)
                 d_real_loss = criterion_bce(
-                    F.sigmoid(self.discriminator(x_hat)), one)
+                    self.discriminator(x_hat), one)
                 d_fake_loss = criterion_bce(
-                    F.sigmoid(self.discriminator(x_rand)), one)
+                    self.discriminator(x_rand), one)
                 loss1 = l1_loss + c_loss + d_real_loss + d_fake_loss
-                loss1.backward(retain_variables=True)
-                train_loss1 += loss1.data[0]
+                loss1.backward(retain_graph  =True)
+                train_loss1 += loss1.data
                 optimizer_enc.step()
                 optimizer_gen.step()
                 optimizer_gen.step()  # update generator twice, from DCGAN
 
                 # 2: Update discriminator parameters
                 optimizer_disc.zero_grad()
+
+                z_hat = self.encoder(x)
+                x_hat = self.generator(z_hat)
+                x_rand = self.generator(z_rand)
+
                 x_loss2 = 2.0 * \
-                    criterion_bce(F.sigmoid(self.discriminator(x)), one) + \
-                    criterion_bce(F.sigmoid(self.discriminator(x_hat)), zero)
+                    criterion_bce(self.discriminator(x), one) + \
+                    criterion_bce(self.discriminator(x_hat), zero)
                 z_loss2 = criterion_bce(
-                    F.sigmoid(self.discriminator(x_rand)), zero)
+                    self.discriminator(x_rand), zero)
                 loss2 = x_loss2 + z_loss2
-                loss2.backward(retain_variables=True)
-                train_loss2 += loss2.data[0]
+                loss2.backward(retain_graph  =True)
+                train_loss2 += loss2.data
                 optimizer_disc.step()
 
                 # 3: Update code discriminator parameters
                 optimizer_code_disc.zero_grad()
-                x_loss3 = c_loss
+                x_loss3 =  criterion_bce(
+                    self.codeDiscriminator(z_hat), one)
                 z_loss3 = criterion_bce(
-                    F.sigmoid(self.codeDiscriminator(z_rand)), zero)
+                    self.codeDiscriminator(z_rand), zero)
                 loss3 = x_loss3 + z_loss3
-                loss3.backward(retain_variables=True)
-                train_loss3 += loss3.data[0]
+                loss3.backward()
+                train_loss3 += loss3.data
                 optimizer_code_disc.step()
 
                 if batch_idx % log_interval == 0:
@@ -242,9 +249,9 @@ class AlphaGAN(object):
                             epoch, batch_idx * n_batch, n,
                             100. * batch_idx / len(train_loader)) +
                           'Loss: {:.5f}, {:.5f}, {:.5f}'.format(
-                            loss1.data[0] / n_batch,
-                            loss2.data[0] / n_batch,
-                            loss3.data[0] / n_batch)
+                            loss1.data / n_batch,
+                            loss2.data / n_batch,
+                            loss3.data / n_batch)
                           )
 
             t1 = time.time()
@@ -260,7 +267,7 @@ class AlphaGAN(object):
             for x, _ in test_loader:
                 n_batch = len(x)
                 if self.gpu:
-                    x = x.cuda(async=True)
+                    x = x.cuda(non_blocking=True)
                 x = Variable(x, volatile=True)
 
                 # Generate codes, reconstructions, and random codes
@@ -269,40 +276,40 @@ class AlphaGAN(object):
                 z_rand = Variable(torch.randn(z_hat.size()),
                                   volatile=True)
                 if self.gpu:
-                    z_rand = z_rand.cuda(async=True)
+                    z_rand = z_rand.cuda(non_blocking=True)
                 x_rand = self.generator(z_rand)
 
                 # Pre-load one and zero variables for efficient reuse
                 one = Variable(torch.ones(n_batch))
                 zero = Variable(torch.zeros(n_batch))
                 if self.gpu:
-                    one = one.cuda(async=True)
-                    zero = zero.cuda(async=True)
+                    one = one.cuda(non_blocking=True)
+                    zero = zero.cuda(non_blocking=True)
 
                 # 1: Update encoder and decoder (generator) parameters
                 l1_loss = self.lambda_ * criterion_l1(x_hat, x)
                 c_loss = criterion_bce(
-                    F.sigmoid(self.codeDiscriminator(z_hat)), one)
+                    self.codeDiscriminator(z_hat), one)
                 d_real_loss = criterion_bce(
-                    F.sigmoid(self.discriminator(x_hat)), one)
+                    self.discriminator(x_hat), one)
                 d_fake_loss = criterion_bce(
-                    F.sigmoid(self.discriminator(x_rand)), one)
+                    self.discriminator(x_rand), one)
                 loss1 = l1_loss + c_loss + d_real_loss + d_fake_loss
                 test_loss1 += loss1.data[0]
 
                 # 2: Update discriminator parameters
                 x_loss2 = 2.0 * \
-                    criterion_bce(F.sigmoid(self.discriminator(x)), one) + \
-                    criterion_bce(F.sigmoid(self.discriminator(x_hat)), zero)
+                    criterion_bce(self.discriminator(x), one) + \
+                    criterion_bce(self.discriminator(x_hat), zero)
                 z_loss2 = criterion_bce(
-                    F.sigmoid(self.discriminator(x_rand)), zero)
+                    self.discriminator(x_rand), zero)
                 loss2 = x_loss2 + z_loss2
                 test_loss2 += loss2.data[0]
 
                 # 3: Update code discriminator parameters
                 x_loss3 = c_loss
                 z_loss3 = criterion_bce(
-                    F.sigmoid(self.codeDiscriminator(z_rand)), zero)
+                    self.codeDiscriminator(z_rand), zero)
                 loss3 = x_loss3 + z_loss3
                 test_loss3 += loss3.data[0]
 
