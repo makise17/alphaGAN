@@ -4,9 +4,9 @@ A PyTorch implementation of alpha-GAN (https://arxiv.org/abs/1706.04987) with a 
 
 ## Dependencies
 
-- PyTorch v0.1+ with CUDA support
-- torchvision v0.1.8+
-- TensorFlow v1.2+ (for TensorBoard only)
+- PyTorch v1.7+ with CUDA11.0 support
+- torchvision v0.8.1+
+- TensorFlow v1.13+ (for TensorBoard only)
 
 ## Usage
 
