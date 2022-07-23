@@ -7,6 +7,7 @@ from torchvision.utils import save_image
 import argparse
 
 from alphaGAN.models import AlphaGAN
+torch.autograd.set_detect_anomaly(True)
 
 """
 A PyTorch Implementation of alpha-GAN, Training on MNIST 

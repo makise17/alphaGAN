@@ -27,13 +27,13 @@ class Discriminator(nn.Module):
         conv = nn.Sequential()
         kernel_size, stride = 5, 2
         conv.add_module(
-            'initial.conv.{0}-{1}'.format(num_channels, num_features),
+            'initial_conv_{0}-{1}'.format(num_channels, num_features),
             nn.Conv2d(num_channels, num_features,
                       kernel_size, stride, 1, bias=False)
         )
         conv.add_module(
-            'initial.relu.{0}'.format(num_features),
-            nn.LeakyReLU(0.2, inplace=True)
+            'initial_relu_{0}'.format(num_features),
+            nn.LeakyReLU(0.2, inplace=False)
         )
         current_size, current_features = input_size / 2, num_features
 
@@ -42,36 +42,36 @@ class Discriminator(nn.Module):
             out_features = current_features * 2
             stride = 1 if stride == 2 else 2
             conv.add_module(
-                'pyramid.{0}-{1}.conv'.format(in_features, out_features),
+                'pyramid_{0}-{1}_conv'.format(in_features, out_features),
                 nn.Conv2d(in_features, out_features,
                           kernel_size, stride, 1, bias=False)
             )
             conv.add_module(
-                'pyramid.{0}.batchnorm'.format(out_features),
+                'pyramid_{0}_batchnorm'.format(out_features),
                 nn.BatchNorm2d(out_features)
             )
             conv.add_module(
-                'pyramid.{0}.relu'.format(out_features),
-                nn.LeakyReLU(0.2, inplace=True)
+                'pyramid_{0}_relu'.format(out_features),
+                nn.LeakyReLU(0.2, inplace=False)
             )
             current_features = current_features * 2
             current_size = current_size / 2
 
         stride = 2
         conv.add_module(
-            'final.{0}-{1}.conv'.format(current_features, current_features),
+            'final_{0}-{1}_conv'.format(current_features, current_features),
             nn.Conv2d(current_features, current_features,
                       kernel_size, stride, 1, bias=False)
         )
-        conv.add_module('final.relu', nn.LeakyReLU(0.2, inplace=True))
-        conv.add_module('final.dropout', nn.Dropout2d(0.8))
+        conv.add_module('final_relu', nn.LeakyReLU(0.2, inplace=False))
+        conv.add_module('final_dropout', nn.Dropout2d(0.8))
 
         self.conv = conv
         self.fc = nn.Linear(current_features, 1)
 
     def forward(self, x):
         out = self.conv(x)
-        out = out.view(-1, num_flat_features(out))
+        out = out.clone().view(-1, num_flat_features(out))
         return self.fc(out)
 
 
@@ -90,11 +90,11 @@ class CodeDiscriminator(nn.Module):
         fc = nn.Sequential()
         in_features, out_features = code_size, num_units
         for l in range(num_layers - 1):
-            fc.add_module('mlp.fc.{0}'.format(l),
+            fc.add_module('mlp_fc_{0}'.format(l),
                           nn.Linear(in_features, out_features))
-            fc.add_module('mlp.relu.{0}'.format(l), nn.ReLU(inplace=True))
+            fc.add_module('mlp_relu_{0}'.format(l), nn.ReLU(inplace=False))
             in_features, out_features = out_features, num_units
-        fc.add_module('mlp.fc.{0}'.format(num_layers - 1),
+        fc.add_module('mlp_fc_{0}'.format(num_layers - 1),
                       nn.Linear(out_features, 1))
 
         self.fc = fc
@@ -119,18 +119,18 @@ class Encoder(nn.Module):
 
         # Convolutional modules
         conv = nn.Sequential()
-        conv.add_module('pyramid.{0}-{1}.conv'.format(num_channels, 32),
+        conv.add_module('pyramid_{0}-{1}_conv'.format(num_channels, 32),
                         nn.Conv2d(num_channels, 32, 6, 1, bias=False))
-        conv.add_module('pyramid.{0}.batchnorm'.format(32),
+        conv.add_module('pyramid_{0}_batchnorm'.format(32),
                         nn.BatchNorm2d(32))
-        conv.add_module('pyramid.{0}.relu'.format(32),
-                        nn.LeakyReLU(0.2, inplace=True))
-        conv.add_module('pyramid.{0}-{1}.conv'.format(32, 64),
+        conv.add_module('pyramid_{0}_relu'.format(32),
+                        nn.LeakyReLU(0.2, inplace=False))
+        conv.add_module('pyramid_{0}-{1}_conv'.format(32, 64),
                         nn.Conv2d(32, 64, 5, 2, bias=False))
-        conv.add_module('pyramid.{0}.batchnorm'.format(64),
+        conv.add_module('pyramid_{0}_batchnorm'.format(64),
                         nn.BatchNorm2d(64))
-        conv.add_module('pyramid.{0}.relu'.format(64),
-                        nn.LeakyReLU(0.2, inplace=True))
+        conv.add_module('pyramid_{0}_relu'.format(64),
+                        nn.LeakyReLU(0.2, inplace=False))
         self.conv = conv
 
         # Final linear module
@@ -157,27 +157,27 @@ class Generator(nn.Module):
 
         # Initial linear modules
         fc = nn.Sequential()
-        fc.add_module('initial.{0}-{1}.linear'.format(code_size, 1024),
+        fc.add_module('initial_{0}-{1}_linear'.format(code_size, 1024),
                       nn.Linear(code_size, 1024))
-        fc.add_module('initial.{0}.relu'.format(1024),
-                      nn.LeakyReLU(0.2, inplace=True))
-        fc.add_module('initial.{0}-{1}.linear'.format(1024, 64 * 10 * 10),
+        fc.add_module('initial_{0}_relu'.format(1024),
+                      nn.LeakyReLU(0.2, inplace=False))
+        fc.add_module('initial_{0}-{1}_linear'.format(1024, 64 * 10 * 10),
                       nn.Linear(1024, 64 * 10 * 10))
-        fc.add_module('initial.{0}.relu'.format(64 * 10 * 10),
-                      nn.LeakyReLU(0.2, inplace=True))
+        fc.add_module('initial_{0}_relu'.format(64 * 10 * 10),
+                      nn.LeakyReLU(0.2, inplace=False))
         self.fc = fc
 
         # Convolutional modules
         conv = nn.Sequential()
-        conv.add_module('pyramid.{0}-{1}.convt'.format(64, 32),
+        conv .add_module('pyramid_{0}-{1}_convt'.format(64, 32),
                         nn.ConvTranspose2d(64, 32, 5, 2, 0, bias=False))
-        conv.add_module('pyramid.{0}.batchnorm'.format(32),
+        conv.add_module('pyramid_{0}_batchnorm'.format(32),
                         nn.BatchNorm2d(32))
-        conv.add_module('pyramid.{0}.relu'.format(32),
-                        nn.LeakyReLU(0.2, inplace=True))
+        conv.add_module('pyramid_{0}_relu'.format(32),
+                        nn.LeakyReLU(0.2, inplace=False))
         # The following layer ensures a (num_channels, 28, 28) output size
         conv.add_module(
-            'pyramid.{0}-{1}.convt'.format(32, num_channels),
+            'pyramid_{0}-{1}_convt'.format(32, num_channels),
             nn.ConvTranspose2d(32, num_channels, 5 + 1, 1, 0, bias=False)
         )
         self.conv = conv
@@ -185,7 +185,8 @@ class Generator(nn.Module):
     def forward(self, x):
         out = self.fc(x)
         out = out.view(-1, 64, 10, 10)
-        return self.conv(out)
+        out = self.conv(out)
+        return out
 
 
 """
