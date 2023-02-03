@@ -29,7 +29,7 @@ Parsing
 parser = argparse.ArgumentParser(description='Train alpha-GAN on MNIST')
 parser.add_argument('--code-size', type=int, default=50,
                     help='dimension of the latent codes (default: 50)')
-parser.add_argument('--lambda_', type=float, default=20.0,
+parser.add_argument('--lambda_', type=float, default=10.0,
                     help='parameter for the l1 reconstruction loss '
                          '(default: 20.0)')
 parser.add_argument('--lr1', type=float, default=0.001,

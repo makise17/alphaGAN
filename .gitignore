@@ -1,6 +1,7 @@
 results
 inference
-alphaga-results
+alphagan-results
 data
 
-.pth
+*.pyc
+*.pth

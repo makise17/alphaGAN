@@ -197,13 +197,13 @@ class AlphaGAN(object):
                 # x_hat = self.generator(z_hat, onehot)
 
                 z_hat, l_hat = self.encoder(x)
-                x_hat = self.generator(z_hat, F.softmax(l_hat, dim=1))
+                x_hat = self.generator(z_hat, l_hat)
                 
                 z_rand = Variable(torch.randn(z_hat.size()),
                                   requires_grad=False)
                 if self.gpu:
                     z_rand = z_rand.cuda()
-                x_rand = self.generator(z_rand,onehot)
+                x_rand = self.generator(z_rand, onehot)
 
 
                 # Pre-load one and zero variables for efficient reuse
@@ -229,12 +229,12 @@ class AlphaGAN(object):
                 # d_real_loss = criterion_bce(
                 #     self.discriminator(x_hat,onehot), one)
                 d_real_loss = criterion_bce(
-                    self.discriminator(x_hat,F.softmax(l_hat, dim=1)), one)
+                    self.discriminator(x_hat,l_hat), one)
                 d_fake_loss = criterion_bce(
                     self.discriminator(x_rand,onehot), one)
-                enc_loss = criterion_ce(l_hat, onehot)
+                #enc_loss = criterion_ce(l_hat, onehot)
 
-                loss1 = l1_loss + c_loss + d_real_loss + d_fake_loss +enc_loss
+                loss1 = l1_loss + c_loss + d_real_loss + d_fake_loss# +enc_loss
                 loss1.backward(retain_graph=True)
                 train_loss1 += loss1.data
                 optimizer_enc.step()
@@ -251,7 +251,7 @@ class AlphaGAN(object):
                 x_rand = self.generator(z_rand,onehot)
                 x_loss2 = 2.0 * \
                     criterion_bce(self.discriminator(x,onehot), one) + \
-                    criterion_bce(self.discriminator(x_hat,F.softmax(l_hat, dim=1)), zero)
+                    criterion_bce(self.discriminator(x_hat,l_hat), zero)
                     # criterion_bce(self.discriminator(x_hat,onehot), zero)
                 z_loss2 = criterion_bce(
                     self.discriminator(x_rand,onehot), zero)       
@@ -319,7 +319,7 @@ class AlphaGAN(object):
 
                     z_hat, l_hat = self.encoder(x)
                     # l_hat = F.softmax(l_hat, dim=1)
-                    x_hat = self.generator(z_hat, F.softmax(l_hat, dim=1))
+                    x_hat = self.generator(z_hat,l_hat)
                  
                     z_rand = Variable(torch.randn(z_hat.size()))
                     if self.gpu:
@@ -343,10 +343,10 @@ class AlphaGAN(object):
                     # d_real_loss = criterion_bce(
                     #     self.discriminator(x_hat, onehot), one)
                     d_real_loss = criterion_bce(
-                        self.discriminator(x_hat, F.softmax(l_hat, dim=1)), one)
+                        self.discriminator(x_hat, l_hat), one)
                     d_fake_loss = criterion_bce(
                         self.discriminator(x_rand, onehot), one)
-                    enc_loss = criterion_ce(l_hat, onehot)
+                    #enc_loss = criterion_ce(l_hat, onehot)
                     
                     # c_loss = criterion_bce(
                     #     F.sigmoid(self.codeDiscriminator(z_hat)), one)
@@ -354,13 +354,13 @@ class AlphaGAN(object):
                     #     F.sigmoid(self.discriminator(x_hat,onehot)), one)
                     # d_fake_loss = criterion_bce(
                     #     F.sigmoid(self.discriminator(x_rand,onehot)), one)
-                    loss1 = l1_loss + c_loss + d_real_loss + d_fake_loss + enc_loss
+                    loss1 = l1_loss + c_loss + d_real_loss + d_fake_loss# + enc_loss
                     test_loss1 += loss1.data
 
                     # 2: Update discriminator parameters
                     x_loss2 = 2.0 * \
                         criterion_bce(self.discriminator(x,onehot), one) + \
-                        criterion_bce(self.discriminator(x_hat,F.softmax(l_hat, dim=1)), zero)
+                        criterion_bce(self.discriminator(x_hat,l_hat), zero)
                         # criterion_bce(self.discriminator(x_hat,onehot), zero)
 
                     z_loss2 = criterion_bce(

@@ -159,8 +159,10 @@ class Encoder(nn.Module):
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2, inplace=True))
         self.code = nn.Linear(1024, code_size)
-        self.label = nn.Linear(1024, 10)
-        
+        self.label = nn.Sequential(
+            nn.Linear(1024, 10),
+            nn.Softmax(dim=1)
+        )
 
     def forward(self, x):
         out = self.conv(x)
