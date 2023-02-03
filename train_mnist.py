@@ -3,11 +3,10 @@
 import torch.utils.data
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
-
+from torch.utils.data.dataset import Subset
 import argparse
 
 from alphaGAN.models import AlphaGAN
-torch.autograd.set_detect_anomaly(True)
 
 """
 A PyTorch Implementation of alpha-GAN, Training on MNIST 
@@ -26,6 +25,7 @@ https://github.com/yunjey/pytorch-tutorial/blob/master/tutorials/
 """
 Parsing
 """
+# 2023/02/03　lr2とseedを書き換え
 parser = argparse.ArgumentParser(description='Train alpha-GAN on MNIST')
 parser.add_argument('--code-size', type=int, default=50,
                     help='dimension of the latent codes (default: 50)')
@@ -44,11 +44,11 @@ parser.add_argument('--beta2', type=float, default=0.9,
                     help='beta2 parameter for Adam optimization (default: 0.9)')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                     help='input batch size for training (default: 64)')
-parser.add_argument('--epochs', type=int, default=30, metavar='N',
+parser.add_argument('--epochs', type=int, default=100, metavar='N',
                     help='number of epochs to train (default: 30)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
-parser.add_argument('--seed', type=int, default=1, metavar='S',
+parser.add_argument('--seed', type=int, default=3407, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='logging frequency during training')
@@ -60,18 +60,29 @@ args.cuda = not args.no_cuda and torch.cuda.is_available()
 """
 DataLoader
 """
-batch_size = args.batch_size * torch.cuda.device_count()
+batch_size = args.batch_size 
 kwargs = {'num_workers': 0, 'pin_memory': True} if args.cuda else {}
+
+
+# mnist_train=datasets.MNIST('../data', train=True, download=True,
+#                    transform=transforms.ToTensor())
+# sub_train = Subset(mnist_train, list(range(128)))                   
+# train_loader = torch.utils.data.DataLoader(
+#     sub_train,
+#     batch_size=batch_size, shuffle=True, **kwargs)
+
+
 train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=True, download=True,
+    datasets.MNIST('./data', train=True, download=True,
                    transform=transforms.ToTensor()),
     batch_size=batch_size, shuffle=True, **kwargs)
+
 test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=False, transform=transforms.ToTensor()),
+    datasets.MNIST('./data', train=False, transform=transforms.ToTensor()),
     batch_size=batch_size, shuffle=True, **kwargs)
 num_channels, height, width = train_loader.dataset[0][0].size()
 input_size = height * width
-
+# print(input_size)
 """
 alpha-GAN
 """
