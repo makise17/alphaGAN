@@ -1,0 +1,7 @@
+results
+inference
+alphagan-results
+data
+
+*.pyc
+*.pth
