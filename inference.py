@@ -9,7 +9,7 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 #入力する乱数の次元の大きさ
 n=50
-batch_size = 40
+batch_size = 100
 input_size = 784
 num_channels = 1
 kwargs = {'num_workers': 0, 'pin_memory': True}

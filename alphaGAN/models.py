@@ -190,12 +190,12 @@ class AlphaGAN(object):
             for batch_idx, (x, l) in enumerate(train_loader):
                 # Prepare x
                 n_batch = len(x)
-                label_rand = torch.randint(low=0, high=10, size=(n_batch,))#.to(torch.float32)
+                # label_rand = torch.randint(low=0, high=10, size=(n_batch,))#.to(torch.float32)
                 # onehot = nn.functional.one_hot(torch.randint(low=0, high=10, size=(n_batch,)), 10)#.to(torch.float32)
                 # onehot = nn.functional.one_hot(l, 10).to(torch.float32)
                 x = Variable(x, requires_grad=False)
                 if self.gpu:
-                    label_rand=label_rand.cuda()
+                    # label_rand=label_rand.cuda()
                     x = x.cuda()
                     l = l.cuda()
 
@@ -211,7 +211,8 @@ class AlphaGAN(object):
                                   requires_grad=False)
                 if self.gpu:
                     z_rand = z_rand.cuda()
-                x_rand = self.generator(z_rand, label_rand)
+                # x_rand = self.generator(z_rand, label_rand)
+                x_rand = self.generator(z_rand, l)
 
 
                 # Pre-load one and zero variables for efficient reuse
@@ -239,7 +240,8 @@ class AlphaGAN(object):
                 d_real_loss = criterion_bce(
                     self.discriminator(x_hat, label_hat), one)
                 d_fake_loss = criterion_bce(
-                    self.discriminator(x_rand,label_rand), one)
+                    self.discriminator(x_rand,l), one)
+                    # self.discriminator(x_rand,label_rand), one)
                 enc_loss = criterion_ce(l_hat, l)
 
                 loss1 = l1_loss + c_loss + d_real_loss + d_fake_loss +enc_loss
@@ -256,13 +258,15 @@ class AlphaGAN(object):
                 label_hat = torch.argmax(l_hat, dim=1)
                 # l_hat = F.softmax(l_hat, dim=1)
                 x_hat = self.generator(z_hat, label_hat)
-                x_rand = self.generator(z_rand,label_rand)
+                x_rand = self.generator(z_rand,l)
+                # x_rand = self.generator(z_rand,label_rand)
                 x_loss2 = 2.0 * \
                     criterion_bce(self.discriminator(x,l), one) + \
                     criterion_bce(self.discriminator(x_hat, label_hat), zero)
                     # criterion_bce(self.discriminator(x_hat,onehot), zero)
                 z_loss2 = criterion_bce(
-                    self.discriminator(x_rand,label_rand), zero)       
+                    self.discriminator(x_rand,l), zero)       
+                    # self.discriminator(x_rand,label_rand), zero)       
                 # x_loss2 = 2.0 * \
                 #     criterion_bce(F.sigmoid(self.discriminator(x,onehot)), one) + \
                 #     criterion_bce(F.sigmoid(self.discriminator(x_hat,onehot)), zero)
@@ -278,7 +282,8 @@ class AlphaGAN(object):
                 x_loss3 = criterion_bce(
                     self.codeDiscriminator(z_hat,  label_hat), zero)
                 z_loss3 = criterion_bce(
-                    self.codeDiscriminator(z_rand, label_rand), one)
+                    self.codeDiscriminator(z_rand, l), one)
+                    # self.codeDiscriminator(z_rand, label_rand), one)
                 # x_loss3 = criterion_bce(
                 #     torch.sigmoid(self.codeDiscriminator(z_hat)), one)
                 # z_loss3 = criterion_bce(
@@ -320,7 +325,7 @@ class AlphaGAN(object):
                         x = x.cuda()
                         l = l.cuda()
                     x = Variable(x)
-                    label_rand = torch.randint(low=0, high=10, size=(n_batch,))
+                    # label_rand = torch.randint(low=0, high=10, size=(n_batch,))
                     # onehot = nn.functional.one_hot(torch.randint(low=0, high=10, size=(n_batch,)), 10).to(torch.float32)
                     # Generate codes, reconstructions, and random codes
                     # 2023/02/03
@@ -334,9 +339,10 @@ class AlphaGAN(object):
                  
                     z_rand = Variable(torch.randn(z_hat.size()))
                     if self.gpu:
-                        label_rand=label_rand.cuda()
+                        # label_rand=label_rand.cuda()
                         z_rand = z_rand.cuda()
-                    x_rand = self.generator(z_rand, label_rand)
+                    x_rand = self.generator(z_rand, l)
+                    # x_rand = self.generator(z_rand, label_rand)
 
 
                     # Pre-load one and zero variables for efficient reuse
@@ -356,7 +362,8 @@ class AlphaGAN(object):
                     d_real_loss = criterion_bce(
                         self.discriminator(x_hat, label_hat), one)
                     d_fake_loss = criterion_bce(
-                        self.discriminator(x_rand, label_rand), one)
+                        self.discriminator(x_rand, l), one)
+                        # self.discriminator(x_rand, label_rand), one)
                     enc_loss = criterion_ce(l_hat, l)
                     
                     # c_loss = criterion_bce(
@@ -370,12 +377,14 @@ class AlphaGAN(object):
 
                     # 2: Update discriminator parameters
                     x_loss2 = 2.0 * \
-                        criterion_bce(self.discriminator(x,label_rand), one) + \
+                        criterion_bce(self.discriminator(x,l), one) + \
                         criterion_bce(self.discriminator(x_hat,label_hat), zero)
+                        # criterion_bce(self.discriminator(x,label_rand), one) + \
                         # criterion_bce(self.discriminator(x_hat,onehot), zero)
 
                     z_loss2 = criterion_bce(
-                        self.discriminator(x_rand,label_rand), zero)
+                        self.discriminator(x_rand,l), zero)
+                        # self.discriminator(x_rand,label_rand), zero)
                     # x_loss2 = 2.0 * \
                     #     criterion_bce(F.sigmoid(self.discriminator(x,onehot)), one) + \
                     #     criterion_bce(F.sigmoid(self.discriminator(x_hat,onehot)), zero)
@@ -387,7 +396,8 @@ class AlphaGAN(object):
                     # 3: Update code discriminator parameters
                     x_loss3 = c_loss
                     z_loss3 = criterion_bce(
-                        self.codeDiscriminator(z_rand, label_rand), zero)
+                        self.codeDiscriminator(z_rand, l), zero)
+                        # self.codeDiscriminator(z_rand, label_rand), zero)
                     # z_loss3 = criterion_bce(
                     #     F.sigmoid(self.codeDiscriminator(z_rand)), zero)
                     loss3 = x_loss3 + z_loss3
