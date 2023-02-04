@@ -1,6 +1,6 @@
 # α-Conditional GAN
 
-A PyTorch implementation of α-GAN (https://arxiv.org/abs/1706.04987) based α-CGAN with a sample run on MNIST.
+A PyTorch implementation of α-CGAN based α-GAN (https://arxiv.org/abs/1706.04987) with a sample run on MNIST.
 
 ## Dependencies
 
