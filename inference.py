@@ -19,15 +19,15 @@ kwargs = {'num_workers': 0, 'pin_memory': True}
 #学習済みモデルの読み込み
 netG = Generator(n,input_size, num_channels,)
 netG = torch.nn.DataParallel(netG)
-# trained_model_path = './alphagan-results/g-epoch-30.pth'
-trained_model_path = './results_2/g-epoch-20.pth'
+trained_model_path = './alphagan-results/g-epoch-50.pth'
+# trained_model_path = './results_2/g-epoch-20.pth'
 netG.load_state_dict(torch.load(trained_model_path))
 netG = netG.cuda()
 
 netE = Encoder(input_size=input_size, num_channels=num_channels, code_size=n)
 netE = torch.nn.DataParallel(netE)
-# trained_model_pathE = './alphagan-results/e-epoch-30.pth'
-trained_model_pathE = './results_2/e-epoch-20.pth'
+trained_model_pathE = './alphagan-results/e-epoch-50.pth'
+# trained_model_pathE = './results_2/e-epoch-20.pth'
 
 netE.load_state_dict(torch.load(trained_model_pathE))
 netE = netE.cuda()
@@ -42,15 +42,15 @@ z_rand = Variable(torch.randn(batch_size, n), requires_grad=False)
 # z_rand = z_rand.cuda()
 # ランダムに出力するonehot
 # onehot = nn.functional.one_hot(torch.randint(low=0, high=10, size=(n,)), 10).to(torch.float32)
-
+rand_label = torch.randint(low=0, high=10, size=(n,))
 # 0から順番に出力するonehot
-onehot2 = nn.functional.one_hot(torch.arange(0, batch_size) % 10, num_classes=10).to(torch.float32)
+# onehot2 = nn.functional.one_hot(torch.arange(0, batch_size) % 10, num_classes=10)#.to(torch.float32)
 # print(onehot2)
-onehot2 = Variable(onehot2, requires_grad=False)
+# onehot2 = Variable(onehot2, requires_grad=False)
 # onehot2 = onehot2.cuda()
 with torch.no_grad():
     #generatorへ入力、出力画像を得る
-    generated_image = netG(z_rand, onehot2)
+    generated_image = netG(z_rand, rand_label)
     # generated_image = torch.sigmoid(generated_image)
     # generated_image = (generated_image + 1.0)/2.0
     print(torch.min(generated_image), torch.max(generated_image))

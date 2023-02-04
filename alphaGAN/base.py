@@ -28,6 +28,9 @@ class Discriminator(nn.Module):
 
         conv = nn.Sequential()
         kernel_size, stride = 5, 2
+
+        #2023/02/03
+        num_channels += 3
         conv.add_module(
             'initial_conv_{0}-{1}'.format(num_channels, num_features),
             nn.Conv2d(num_channels, num_features,
@@ -68,22 +71,28 @@ class Discriminator(nn.Module):
         conv.add_module('final_relu', nn.LeakyReLU(0.2, inplace=True))
         conv.add_module('final_dropout', nn.Dropout2d(0.8))
 
+        #https://learnopencv.com/conditional-gan-cgan-in-pytorch-and-tensorflow/
+        n_classes = 10
+        embedding_dim = 50
+        self.label_condition_disc = nn.Sequential(nn.Embedding(n_classes, embedding_dim),
+                      nn.Linear(embedding_dim, 3*28*28))
+
         self.conv = conv
         #current_features + labels
-        # self.fc = nn.Linear(current_features + labels, 1)
-        self.fc = nn.Sequential(
-            nn.Linear(current_features + labels, 1024),
-            nn.Linear(1024, 1)
-        )
+        self.fc = nn.Linear(current_features, 1)
+        # self.fc = nn.Sequential(
+        #     nn.Linear(current_features + labels, 1024),
+        #     nn.Linear(1024, 1)
+        # )
     def forward(self, x, labels):
-        a = labels.view(labels.size(0),-1)
+        # a = labels.view(labels.size(0),-1)
         #a.shape = (64,10)
-        a = a.reshape(-1,10,1,1)
+        # a = a.reshape(-1,10,1,1)
 
-        b = self.conv(x)
-        #b.shape = (64,64,1,1)
-        out = torch.cat((a, b), 1)
-        #out.shape = (64,74,1,1)
+        label_output = self.label_condition_disc(labels)
+        label_output = label_output.view(-1, 3, 28, 28)
+        concat = torch.cat((x, label_output), dim=1)
+        out = self.conv(concat)
 
         out = out.view(-1, num_flat_features(out))
 
@@ -106,9 +115,15 @@ class CodeDiscriminator(nn.Module):
     def __init__(self, code_size=50, num_units=750, num_layers=3, gpu=True):
         super(CodeDiscriminator, self).__init__()
         self.gpu = gpu
+        # 2023/02/04
+        n_classes = 10
+        embedding_dim = code_size
+        self.label_ = nn.Sequential(
+            nn.Embedding(n_classes, embedding_dim),
+            nn.Linear(embedding_dim, n_classes))
 
         fc = nn.Sequential()
-        in_features, out_features = code_size, num_units
+        in_features, out_features = code_size+n_classes, num_units
         for l in range(num_layers - 1):
             fc.add_module('mlp_fc_{0}'.format(l),
                           nn.Linear(in_features, out_features))
@@ -119,8 +134,11 @@ class CodeDiscriminator(nn.Module):
 
         self.fc = fc
 
-    def forward(self, x):
-        return self.fc(x)
+
+    def forward(self, x, label):
+        label = self.label_(label)
+        concat=torch.cat([x, label], dim=1)
+        return self.fc(concat)
 
 
 class Encoder(nn.Module):
@@ -161,7 +179,7 @@ class Encoder(nn.Module):
         self.code = nn.Linear(1024, code_size)
         self.label = nn.Sequential(
             nn.Linear(1024, 10),
-            nn.Softmax(dim=1)
+            # nn.Softmax(dim=1)
         )
 
     def forward(self, x):
@@ -169,7 +187,11 @@ class Encoder(nn.Module):
         out = out.view(-1, num_flat_features(out))
         # 2023/02/03
         out = self.feat(out)
-        return self.code(out), self.label(out)
+        label = self.label(out)
+        # label = torch.argmax(label, dim=1)
+        # one_hot = nn.functional.one_hot(torch.argmax(label, dim=1), 10)
+        # print(one_hot)
+        return self.code(out), label
 
 
 class Generator(nn.Module):
@@ -186,20 +208,31 @@ class Generator(nn.Module):
         assert input_size % 16 == 0, "input_size has to be a multiple of 16"
 
         # Initial linear modules
-        fc2 = nn.Sequential()
-        fc2.add_module('initial_{0}-{1}_linear'.format(10, 100),
-                      nn.Linear(10, 100))
-        self.fc2 = fc2
+        # fc2 = nn.Sequential()
+        # fc2.add_module('initial_{0}-{1}_linear'.format(10, 100),
+        #               nn.Linear(10, 100))
+        # self.fc2 = fc2
+
+        # 2023/02/04
+        n_classes = 10
+        embedding_dim = code_size
+        self.label_conditioned_generator = nn.Sequential(
+            nn.Embedding(n_classes, embedding_dim),
+            nn.Linear(embedding_dim, 100))
 
         fc = nn.Sequential()
         # fc.add_module('initial_{0}-{1}_linear'.format(code_size, 1024),
         #               nn.Linear(code_size, 1024))
-        fc.add_module('initial_{0}-{1}_linear'.format(code_size+10, 1024),
-                      nn.Linear(code_size+10, 1024))
+        fc.add_module('initial_{0}-{1}_linear'.format(code_size, 1024),
+                      nn.Linear(code_size, 1024))
+        fc.add_module('initial_{0}_batchnorm'.format(1024),
+                        nn.BatchNorm1d(1024))
         fc.add_module('initial_{0}_relu'.format(1024),
                       nn.LeakyReLU(0.2, inplace=True))
         fc.add_module('initial_{0}-{1}_linear'.format(1024, 64 * 10 * 10),
                       nn.Linear(1024, 64 * 10 * 10))
+        fc.add_module('initial_{0}_batchnorm'.format(64 * 10 * 10),
+                        nn.BatchNorm1d(64 * 10 * 10))
         fc.add_module('initial_{0}_relu'.format(64 * 10 * 10),
                       nn.LeakyReLU(0.2, inplace=True))
         self.fc = fc
@@ -231,12 +264,25 @@ class Generator(nn.Module):
         # #b.shape=(64,1,10,10)
         # out = torch.cat([a, b] , 1)
         #out.shape=(64,65,10,10)
-        a = torch.cat([x, labels] , 1)
-        a = self.fc(a)       
-        out = a.view(-1, 64, 10, 10)
-        b = self.fc2(labels)
-        b = b.view(-1, 1, 10, 10)
-        out = torch.cat([out, b] , 1)
+
+        # print('x.shape',x.shape)
+        # print('labels.shape',labels.shape)
+
+        a = self.fc(x)       
+        a = a.view(-1, 64, 10, 10)
+        # print('a.shape',a.shape)
+
+        lcg = self.label_conditioned_generator(labels)
+        #shape = (batch, 1, 10, 10)
+        # print('lcg.shape',lcg.shape)
+        lcg = lcg.view(-1, 1, 10, 10)
+        # print('lcg.shape',lcg.shape)
+
+        out = torch.cat([a, lcg] , 1)
+
+        #b = self.fc2(labels)
+        #b = b.view(-1, 1, 10, 10)
+        #out = torch.cat([out, b] , 1)
         #
         #  a = a.view(-1, 64, 10, 10)
         #a.shape=(64,64,10,10)

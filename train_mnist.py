@@ -27,9 +27,9 @@ Parsing
 """
 # 2023/02/03　lr2とseedを書き換え
 parser = argparse.ArgumentParser(description='Train alpha-GAN on MNIST')
-parser.add_argument('--code-size', type=int, default=50,
+parser.add_argument('--code-size', type=int, default=25,
                     help='dimension of the latent codes (default: 50)')
-parser.add_argument('--lambda_', type=float, default=10.0,
+parser.add_argument('--lambda_', type=float, default=20.0,
                     help='parameter for the l1 reconstruction loss '
                          '(default: 20.0)')
 parser.add_argument('--lr1', type=float, default=0.001,
@@ -42,7 +42,7 @@ parser.add_argument('--beta1', type=float, default=0.5,
                     help='beta1 parameter for Adam optimization (default: 0.5)')
 parser.add_argument('--beta2', type=float, default=0.9,
                     help='beta2 parameter for Adam optimization (default: 0.9)')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                     help='input batch size for training (default: 64)')
 parser.add_argument('--epochs', type=int, default=100, metavar='N',
                     help='number of epochs to train (default: 30)')
