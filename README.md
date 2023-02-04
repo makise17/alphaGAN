@@ -31,10 +31,10 @@ and access https://localhost:6006 (or the corresponding server URL) on your brow
   - [Yunjey Choi's TensorBoard tutorial for PyTorch](https://github.com/yunjey/pytorch-tutorial/blob/master/tutorials/04-utils/tensorboard/main.py)
   
 ## Generated MNIST Images
-![samples-mnist-epoch-30](https://github.com/makise17/alphaGAN/blob/master/samples.png)
+![samples-mnist-epoch-30](https://github.com/makise17/alphaGAN/blob/master/sample.png)
 
 ## Recon
 ### X
-![samples-mnist-epoch-30](https://github.com/makise17/alphaGAN/blob/master/real.png)
+![real-mnist](https://github.com/makise17/alphaGAN/blob/master/real.png)
 ### G(E(X))
-![samples-mnist-epoch-30](https://github.com/makise17/alphaGAN/blob/master/rec.png)
+![rec-mnist-epoch-30](https://github.com/makise17/alphaGAN/blob/master/rec.png)
