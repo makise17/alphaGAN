@@ -30,7 +30,7 @@ class Discriminator(nn.Module):
         kernel_size, stride = 5, 2
 
         #2023/02/03
-        num_channels += 3
+        num_channels += 1
         conv.add_module(
             'initial_conv_{0}-{1}'.format(num_channels, num_features),
             nn.Conv2d(num_channels, num_features,
@@ -53,7 +53,7 @@ class Discriminator(nn.Module):
             )
             conv.add_module(
                 'pyramid_{0}_batchnorm'.format(out_features),
-                nn.BatchNorm2d(out_features)
+                nn.InstanceNorm2d(out_features)
             )
             conv.add_module(
                 'pyramid_{0}_relu'.format(out_features),
@@ -75,7 +75,7 @@ class Discriminator(nn.Module):
         n_classes = 10
         embedding_dim = 50
         self.label_condition_disc = nn.Sequential(nn.Embedding(n_classes, embedding_dim),
-                      nn.Linear(embedding_dim, 3*28*28))
+                      nn.Linear(embedding_dim, 1*28*28))
 
         self.conv = conv
         #current_features + labels
@@ -90,7 +90,7 @@ class Discriminator(nn.Module):
         # a = a.reshape(-1,10,1,1)
 
         label_output = self.label_condition_disc(labels)
-        label_output = label_output.view(-1, 3, 28, 28)
+        label_output = label_output.view(-1, 1, 28, 28)
         concat = torch.cat((x, label_output), dim=1)
         out = self.conv(concat)
 
@@ -157,28 +157,40 @@ class Encoder(nn.Module):
 
         # Convolutional modules
         conv = nn.Sequential()
-        conv.add_module('pyramid_{0}-{1}_conv'.format(num_channels, 32),
-                        nn.Conv2d(num_channels, 32, 6, 1, bias=False))
-        conv.add_module('pyramid_{0}_batchnorm'.format(32),
-                        nn.BatchNorm2d(32))
-        conv.add_module('pyramid_{0}_relu'.format(32),
-                        nn.LeakyReLU(0.2, inplace=True))
-        conv.add_module('pyramid_{0}-{1}_conv'.format(32, 64),
-                        nn.Conv2d(32, 64, 5, 2, bias=False))
+        conv.add_module('pyramid_{0}-{1}_conv'.format(num_channels, 64),
+                        nn.Conv2d(num_channels, 64, 4, 2, 1 , bias=False))
         conv.add_module('pyramid_{0}_batchnorm'.format(64),
-                        nn.BatchNorm2d(64))
+                        nn.InstanceNorm2d(64))
         conv.add_module('pyramid_{0}_relu'.format(64),
                         nn.LeakyReLU(0.2, inplace=True))
+        conv.add_module('pyramid_{0}-{1}_conv'.format(64, 64),
+                        nn.Conv2d(64, 64, 4, 2, 1,  bias=False))
+        conv.add_module('pyramid_{0}_batchnorm'.format(64),
+                        nn.InstanceNorm2d(64))
+        conv.add_module('pyramid_{0}_relu'.format(64),
+                        nn.LeakyReLU(0.2, inplace=True))
+        conv.add_module('pyramid_{0}-{1}_conv'.format(64, 64*2),
+                        nn.Conv2d(64, 64*2, 4, 2, 1 , bias=False))
+        conv.add_module('pyramid_{0}_batchnorm'.format(64*2),
+                        nn.InstanceNorm2d(64*2))
+        conv.add_module('pyramid_{0}_relu'.format(64*2),
+                        nn.LeakyReLU(0.2, inplace=True))
+        conv.add_module('pyramid_{0}-{1}_conv'.format(64*2, 64*2),
+                        nn.Conv2d(64*2, 64*2, 3, 1, 0 , bias=False))
+        conv.add_module('pyramid_{0}_batchnorm'.format(64*2),
+                        nn.InstanceNorm2d(64*2))
+        conv.add_module('pyramid_{0}_relu'.format(64*2),
+                        nn.LeakyReLU(0.2, inplace=True))
+
         self.conv = conv
 
         # Final linear module
-        self.feat = nn.Sequential(
-            nn.Linear(64 * 10 * 10, 1024),
-            nn.BatchNorm1d(1024),
-            nn.LeakyReLU(0.2, inplace=True))
-        self.code = nn.Linear(1024, code_size)
+        self.code = nn.Sequential(
+            nn.Linear(64*2, code_size),
+            nn.Tanh()
+        )
         self.label = nn.Sequential(
-            nn.Linear(1024, 10),
+            nn.Linear(64*2, 10),
             # nn.Softmax(dim=1)
         )
 
@@ -186,7 +198,7 @@ class Encoder(nn.Module):
         out = self.conv(x)
         out = out.view(-1, num_flat_features(out))
         # 2023/02/03
-        out = self.feat(out)
+        # out = self.feat(out)
         label = self.label(out)
         # label = torch.argmax(label, dim=1)
         # one_hot = nn.functional.one_hot(torch.argmax(label, dim=1), 10)
@@ -218,44 +230,56 @@ class Generator(nn.Module):
         embedding_dim = code_size
         self.label_conditioned_generator = nn.Sequential(
             nn.Embedding(n_classes, embedding_dim),
-            nn.Linear(embedding_dim, 100))
+            nn.Linear(embedding_dim, 16))
 
-        fc = nn.Sequential()
+        # fc = nn.Sequential()
+        # # fc.add_module('initial_{0}-{1}_linear'.format(code_size, 1024),
+        # #               nn.Linear(code_size, 1024))
         # fc.add_module('initial_{0}-{1}_linear'.format(code_size, 1024),
         #               nn.Linear(code_size, 1024))
-        fc.add_module('initial_{0}-{1}_linear'.format(code_size, 1024),
-                      nn.Linear(code_size, 1024))
-        fc.add_module('initial_{0}_batchnorm'.format(1024),
-                        nn.BatchNorm1d(1024))
-        fc.add_module('initial_{0}_relu'.format(1024),
-                      nn.LeakyReLU(0.2, inplace=True))
-        fc.add_module('initial_{0}-{1}_linear'.format(1024, 64 * 10 * 10),
-                      nn.Linear(1024, 64 * 10 * 10))
-        fc.add_module('initial_{0}_batchnorm'.format(64 * 10 * 10),
-                        nn.BatchNorm1d(64 * 10 * 10))
-        fc.add_module('initial_{0}_relu'.format(64 * 10 * 10),
-                      nn.LeakyReLU(0.2, inplace=True))
-        self.fc = fc
+        # fc.add_module('initial_{0}_batchnorm'.format(1024),
+        #                 nn.InstanceNorm1d(1024))
+        # fc.add_module('initial_{0}_relu'.format(1024),
+        #               nn.LeakyReLU(0.2, inplace=True))
+        # fc.add_module('initial_{0}-{1}_linear'.format(1024, 64 * 10 * 10),
+        #               nn.Linear(1024, 64 * 10 * 10))
+        # fc.add_module('initial_{0}_batchnorm'.format(64 * 10 * 10),
+        #                 nn.InstanceNorm1d(64 * 10 * 10))
+        # fc.add_module('initial_{0}_relu'.format(64 * 10 * 10),
+        #               nn.LeakyReLU(0.2, inplace=True))
+        # self.fc = fc
+        self.fc = nn.Sequential(
+            nn.Linear(code_size, 4*4*128),
+            nn.LeakyReLU(0.2, inplace=True)
+            )
 
         # Convolutional modules
-        conv = nn.Sequential()
-        conv.add_module('pyramid_{0}-{1}_convt'.format(65, 32),
-                        nn.ConvTranspose2d(65, 32, 5, 2, 0, bias=False))
-        conv.add_module('pyramid_{0}_batchnorm'.format(32),
-                        nn.BatchNorm2d(32))
-        conv.add_module('pyramid_{0}_relu'.format(32),
-                        nn.LeakyReLU(0.2, inplace=True))
-        # The following layer ensures a (num_channels, 28, 28) output size
-        conv.add_module(
-            'pyramid_{0}-{1}_convt'.format(32, num_channels),
-            nn.ConvTranspose2d(32, num_channels, 5 + 1, 1, 0, bias=False)
-        )
-        # 2023/02/03
-        conv.add_module('pyramid_{0}_tanh'.format(num_channels),
-            nn.Tanh()
-        )
-        self.conv = conv
-
+        # conv = nn.Sequential()
+        # conv.add_module('pyramid_{0}-{1}_convt'.format(65, 32),
+        #                 nn.ConvTranspose2d(65, 32, 5, 2, 0, bias=False))
+        # conv.add_module('pyramid_{0}_batchnorm'.format(32),
+        #                 nn.InstanceNorm2d(32))
+        # conv.add_module('pyramid_{0}_relu'.format(32),
+        #                 nn.LeakyReLU(0.2, inplace=True))
+        # # The following layer ensures a (num_channels, 28, 28) output size
+        # conv.add_module(
+        #     'pyramid_{0}-{1}_convt'.format(32, num_channels),
+        #     nn.ConvTranspose2d(32, num_channels, 5 + 1, 1, 0, bias=False)
+        # )
+        # # 2023/02/03
+        # conv.add_module('pyramid_{0}_tanh'.format(num_channels),
+        #     nn.Tanh()
+        # )
+        # self.conv = conv
+        self.conv =  nn.Sequential(
+            nn.ConvTranspose2d(129, 64*2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64*2, momentum=0.1,  eps=0.8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(64*2, 64*1, 4, 2, 1,bias=False),
+            nn.BatchNorm2d(64*1, momentum=0.1,  eps=0.8),
+            nn.ReLU(True), 
+            nn.ConvTranspose2d(64*1, 1, 2, 2, 2,bias=False),
+            nn.Tanh())
     def forward(self, x, labels):
         # a = self.fc(x)
         # a = a.view(-1, 64, 10, 10)
@@ -269,13 +293,13 @@ class Generator(nn.Module):
         # print('labels.shape',labels.shape)
 
         a = self.fc(x)       
-        a = a.view(-1, 64, 10, 10)
+        a = a.view(-1, 128, 4, 4)
         # print('a.shape',a.shape)
 
         lcg = self.label_conditioned_generator(labels)
         #shape = (batch, 1, 10, 10)
         # print('lcg.shape',lcg.shape)
-        lcg = lcg.view(-1, 1, 10, 10)
+        lcg = lcg.view(-1, 1, 4, 4)
         # print('lcg.shape',lcg.shape)
 
         out = torch.cat([a, lcg] , 1)
