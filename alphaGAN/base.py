@@ -116,14 +116,14 @@ class CodeDiscriminator(nn.Module):
         super(CodeDiscriminator, self).__init__()
         self.gpu = gpu
         # 2023/02/04
-        n_classes = 10
-        embedding_dim = code_size
-        self.label_ = nn.Sequential(
-            nn.Embedding(n_classes, embedding_dim),
-            nn.Linear(embedding_dim, n_classes))
+        # n_classes = 10
+        # embedding_dim = code_size
+        # self.label_ = nn.Sequential(
+        #     nn.Embedding(n_classes, embedding_dim),
+        #     nn.Linear(embedding_dim, n_classes))
 
         fc = nn.Sequential()
-        in_features, out_features = code_size+n_classes, num_units
+        in_features, out_features = code_size, num_units
         for l in range(num_layers - 1):
             fc.add_module('mlp_fc_{0}'.format(l),
                           nn.Linear(in_features, out_features))
@@ -136,9 +136,9 @@ class CodeDiscriminator(nn.Module):
 
 
     def forward(self, x, label):
-        label = self.label_(label)
-        concat=torch.cat([x, label], dim=1)
-        return self.fc(concat)
+        # label = self.label_(label)
+        # concat=torch.cat([x, label], dim=1)
+        return self.fc(x)
 
 
 class Encoder(nn.Module):

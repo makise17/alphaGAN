@@ -401,7 +401,7 @@ class AlphaGAN(object):
                   )
 
             # checkpoints
-            if epoch %5 == 0:
+            if epoch %1 == 0:
                 torch.save(self.discriminator.state_dict(),
                         '{}/d-epoch-{}.pth'.format(output_path, epoch))
                 torch.save(self.codeDiscriminator.state_dict(),
